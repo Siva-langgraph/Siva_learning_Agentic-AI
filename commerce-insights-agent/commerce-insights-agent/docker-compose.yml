@@ -1,0 +1,29 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: commerce
+      POSTGRES_USER: commerce_app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    ports: ["127.0.0.1:5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U commerce_app -d commerce"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  api:
+    build: .
+    environment:
+      APP_ENV: production
+      DATABASE_URL: postgresql://commerce_app:${POSTGRES_PASSWORD}@db:5432/commerce
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?Set OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+      APP_API_KEY: ${APP_API_KEY:?Set APP_API_KEY}
+    ports: ["127.0.0.1:8000:8000"]
+    depends_on:
+      db: {condition: service_healthy}
+volumes:
+  pgdata:
